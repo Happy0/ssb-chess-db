@@ -1,0 +1,19 @@
+{
+  "name": "ssb-chess-db",
+  "version": "1.0.0",
+  "description": "A convenient index for the status of all the ssb-chess games in the database.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Gordon Martin",
+  "license": "MIT",
+  "dependencies": {
+    "flumeview-reduce": "^1.3.8"
+  },
+  "devDependencies": {
+    "ssb-keys": "^7.0.12",
+    "scuttlebot": "^10.4.10",
+    "ssb-config": "2.2.0"
+  }
+}

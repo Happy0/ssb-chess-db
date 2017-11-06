@@ -17,7 +17,7 @@ exports.manifest = {
   getGamesFinishedPageCb: 'async'
 }
 
-const indexVersion = 17;
+const indexVersion = 1;
 const chessTypeMessages = ["chess_invite", "chess_invite_accept", "chess_game_end"];
 
 const INVITER_FIELD = 'i';

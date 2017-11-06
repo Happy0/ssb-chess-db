@@ -1,6 +1,7 @@
 
 var createSbot = require('scuttlebot').use(require("./index"))
 var ssbKeys = require('ssb-keys')
+var pull = require('pull-stream');
 
 var config = {port:9999,     friends: {
       dunbar: 150,

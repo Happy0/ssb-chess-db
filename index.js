@@ -1,4 +1,7 @@
 const FlumeReduce = require('flumeview-reduce')
+const pull = require( 'pull-stream' )
+const iterable = require( 'pull-iterable' )
+const deferred = require('pull-defer');
 
 exports.name = 'ssbChessIndex'
 exports.version = require('./package.json').version
@@ -13,8 +16,7 @@ exports.manifest = {
   getGamesAgreedToPlayIds: 'async',
   getObservableGames: 'async',
 
-  // TODO: work out how to make this a mux-rpc stream
-  getGamesFinishedPageCb: 'async'
+  getGamesFinished: 'source'
 }
 
 const indexVersion = 1;
@@ -49,8 +51,41 @@ exports.init = function (ssb, config) {
     pendingChallengesReceived: (id, cb) => withView(view, cb, pendingChallengesReceived.bind(null, id)),
     getGamesAgreedToPlayIds: (id, cb) => withView(view, cb, getGamesAgreedToPlayIds.bind(null, id)),
     getObservableGames: (id, cb) => withView(view, cb, getObservableGames.bind(null, id)),
-    getGamesFinishedPageCb: (id, start, end, cb) => withView(view, cb, getGamesFinishedPageCb.bind(null, id, start, end))
+    getGamesFinished: (playerId) => {
+      var source = deferred.source();
+
+      view.get( (err, index) => {
+        if (err) {
+          source.abort(err)
+        } else {
+          var finishedGamesIter = iterable(finishedGamesIterable(playerId, index));
+          source.resolve(finishedGamesIter)
+        }
+      })
+
+      return source;
+    }
   }
+}
+
+function gameHasUser(gameInfo, playerId) {
+  return gameInfo[INVITEE_FIELD] === playerId || gameInfo[INVITER_FIELD] === playerId
+}
+
+function* finishedGamesIterable(playerId, view) {
+  var result = [];
+
+  for (var k in view) {
+    if (view.hasOwnProperty(k)) {
+      var summary = view[k];
+      if (summary[STATUS_FIELD] != STATUS_INVITED && summary[STATUS_FIELD]
+           != STATUS_STARTED && gameHasUser(summary, playerId)) {
+             yield k;
+           }
+    }
+
+  }
+
 }
 
 function withView(view, cb, func) {

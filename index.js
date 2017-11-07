@@ -19,7 +19,7 @@ exports.manifest = {
   getGamesFinished: 'source'
 }
 
-const indexVersion = 1;
+const indexVersion = 2;
 const chessTypeMessages = ["chess_invite", "chess_invite_accept", "chess_game_end"];
 
 const INVITER_FIELD = 'i';
@@ -38,7 +38,7 @@ const STATUS_STARTED = 'started';
  */
 exports.init = function (ssb, config) {
 
-  const view = ssb._flumeUse('ssb-chess-index',
+  const view = ssb._flumeUse('ssbChessIndex',
     FlumeReduce(
       indexVersion,
       flumeReduceFunction,

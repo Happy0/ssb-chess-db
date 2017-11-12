@@ -38,7 +38,7 @@ const STATUS_STARTED = 'started';
  */
 exports.init = function (ssb, config) {
 
-  const view = ssb._flumeUse('ssbChessIndex',
+  const view = ssb._flumeUse('ssb-chess-index',
     FlumeReduce(
       indexVersion,
       flumeReduceFunction,
@@ -163,7 +163,12 @@ function getObservableGames(playerId, view) {
             (gameInfo[INVITER_FIELD] !== playerId) &&
             (gameInfo[STATUS_FIELD] === STATUS_STARTED)) {
 
-            result.push(k)
+            // If either of these were null then one or more players aren't
+            // visible to the player, so we don't return it as an observable
+            // game
+            if (gameInfo[INVITER_FIELD] && gameInfo[INVITEE_FIELD]) {
+                result.push(k)
+            }
          }
        }
    }

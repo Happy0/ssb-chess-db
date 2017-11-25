@@ -3,6 +3,8 @@ const pull = require( 'pull-stream' )
 const iterable = require( 'pull-iterable' )
 const deferred = require('pull-defer');
 
+const pullScan = require('pull-scan');
+
 exports.name = 'ssbChessIndex'
 exports.version = require('./package.json').version
 
@@ -51,6 +53,20 @@ exports.init = function (ssb, config) {
     pendingChallengesReceived: (id, cb) => withView(view, cb, pendingChallengesReceived.bind(null, id)),
     getGamesAgreedToPlayIds: (id, cb) => withView(view, cb, getGamesAgreedToPlayIds.bind(null, id)),
     getObservableGames: (id, cb) => withView(view, cb, getObservableGames.bind(null, id)),
+
+    /**
+     * Emits a new list of games that the given player (by playerId) is playing
+     * if there are any changes (such as the player starting a new game or finishing
+     * a current one.)
+     */
+    getGamesAgreedToPlayIdStream: (playerId) => {
+      var indexChangeStream = view.stream({live: true});
+      var getCurrentPlayerGames = () => pull.asyncMap(getGamesAgreedToPlayIds.bind(null, id));
+
+      var emitOnlyChanges = pullFilterOnlyIfChange(getCurrentPlayerGames, listsDiffer);
+
+      return pull(indexChangeStream, emitOnlyChanges)
+    },
     getGamesFinished: (playerId) => {
       var source = deferred.source();
 
@@ -67,6 +83,38 @@ exports.init = function (ssb, config) {
     }
   }
 }
+
+function listsDiffer(list1, list2) {
+  return list1.filter(function(i) {return list2.indexOf(i) < 0;}).length > 0;
+}
+
+/**
+ * When a new value is emitted from the given pull stream source, if it
+ * is different from the last value emitted it will be emitted by this 'through',
+ * otherwise it will be filtered from the stream
+
+ * @comparerFn (a, b) => Bool . A function that can compare two values and
+                         returns true if they indicate changes have been made
+                         and false otherwise.
+ * @return A new pull-stream source.
+ */
+function pullFilterOnlyIfChange(source, comparerFn) {
+
+  var scanFn = (acc, next) => {
+    return [acc, next];
+  }
+
+  var filterFn = (pair) => comparerFn(pair[0], pair[1]);
+
+  // Return the 'next' value
+  var mapFn = (pair) => pair[1]
+
+  var ifChangesFilter = pull(pullScan(filterFn), pull.filter(filterFn));
+  var emitOnlyIfChanged = map(ifChangesFilter, mapFn);
+
+  return pull(source, emitOnlyIfChanged);
+}
+
 
 function gameHasUser(gameInfo, playerId) {
   return gameInfo[INVITEE_FIELD] === playerId || gameInfo[INVITER_FIELD] === playerId

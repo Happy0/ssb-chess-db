@@ -22,7 +22,7 @@ function pullFilterOnlyIfChangeFromPrevious(source, comparerFn) {
   // Return the 'next' value
   var mapFn = (pair) => pair[1]
 
-  var ifChangesFilter = pull(pullScan(filterFn), pull.filter(filterFn));
+  var ifChangesFilter = pull(pullScan(scanFn), pull.filter(filterFn));
   var emitOnlyIfChanged = map(ifChangesFilter, mapFn);
 
   return pull(source, emitOnlyIfChanged);

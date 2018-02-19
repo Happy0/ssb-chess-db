@@ -15,8 +15,8 @@ exports.manifest = {
   pendingChallengesReceived: 'async',
   getGamesAgreedToPlayIds: 'async',
   getObservableGames: 'async',
-
-  getGamesFinished: 'source'
+  getGamesFinished: 'source',
+  gameHasPlayer: 'async'
 }
 
 const indexVersion = 2;
@@ -64,7 +64,17 @@ exports.init = function (ssb, config) {
       })
 
       return source;
-    }
+    },
+    gameHasPlayer: (gameId, playerId, cb) => withView(view, cb, gameHasPlayer.bind(null, gameId, playerId))
+  }
+}
+
+function gameHasPlayer(gameId, playerId, view) {
+  if (!view.hasOwnProperty(gameId)) {
+    return false;
+  } else {
+    var gameInfo = view[gameId];
+    return gameHasUser(gameInfo, playerId);
   }
 }
 

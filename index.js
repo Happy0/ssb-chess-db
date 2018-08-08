@@ -3,7 +3,7 @@ const pull = require( 'pull-stream' )
 const iterable = require( 'pull-iterable' )
 const deferred = require('pull-defer');
 
-exports.name = 'ssbChessIndex'
+exports.name = 'chess-db'
 exports.version = require('./package.json').version
 
 /*

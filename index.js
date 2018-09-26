@@ -16,7 +16,8 @@ exports.manifest = {
   getGamesAgreedToPlayIds: 'async',
   getObservableGames: 'async',
   getGamesFinished: 'source',
-  gameHasPlayer: 'async'
+  gameHasPlayer: 'async',
+  weightedPlayFrequencyList: 'async'
 }
 
 const indexVersion = 2;
@@ -65,7 +66,56 @@ exports.init = function (ssb, config) {
 
       return source;
     },
-    gameHasPlayer: (gameId, playerId, cb) => withView(view, cb, gameHasPlayer.bind(null, gameId, playerId))
+    gameHasPlayer: (gameId, playerId, cb) => withView(view, cb, gameHasPlayer.bind(null, gameId, playerId)),
+
+    /**
+     * A list of the players the player has played with, weighted by the number of times they've played and
+     * how recent those games were
+     */
+    weightedPlayFrequencyList: (playerId, cb) => withView(view, cb, playFrequencyWeights.bind(null, playerId))
+  }
+}
+
+function getLatestUpdateTime(gameInfo) {
+  return gameInfo[UPDATED_FIELD] ? gameInfo[UPDATED_FIELD] : 0;
+}
+
+function playFrequencyWeights(playerId, view) {
+  var playerGames = allPlayerGames(view, playerId);
+
+  var scale = playerGames.map(getLatestUpdateTime).reduce((g1, g2) => Math.max(g1,g2));
+
+  var weights = {};
+
+  playerGames.forEach(game => {
+    var weight = weightGameInvite(game, scale);
+    var otherPlayer = getOtherPlayer(game, playerId);
+
+    if (weights[otherPlayer]) {
+      weights[otherPlayer] += weight;
+    } else {
+      weights[otherPlayer] = weight;
+    }
+  });
+
+  return weights;    
+}
+
+function weightGameInvite(game, scale) {
+  var lastUpdate = game[UPDATED_FIELD];
+
+  return (lastUpdate / scale);
+}
+
+function allPlayerGames(view, playerId) {
+  return Object.values(view).filter(game => gameHasUser(game, playerId));
+}
+
+function getOtherPlayer(gameInfo, playerId) {
+  if (gameInfo[INVITEE_FIELD] !== playerId) {
+    return gameInfo[INVITEE_FIELD];
+  } else {
+    return gameInfo[INVITER_FIELD];
   }
 }
 

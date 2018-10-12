@@ -1,6 +1,5 @@
 const FlumeReduce = require('flumeview-reduce')
-const pull = require( 'pull-stream' )
-const iterable = require( 'pull-iterable' )
+const iterable = require('pull-iterable')
 const deferred = require('pull-defer');
 
 exports.name = 'chess-db'
@@ -16,6 +15,7 @@ exports.manifest = {
   getGamesAgreedToPlayIds: 'async',
   getObservableGames: 'async',
   getGamesFinished: 'source',
+  getAllGamesInDb: 'source',
   gameHasPlayer: 'async',
   weightedPlayFrequencyList: 'async'
 }
@@ -52,10 +52,28 @@ exports.init = function (ssb, config) {
     pendingChallengesReceived: (id, cb) => withView(view, cb, pendingChallengesReceived.bind(null, id)),
     getGamesAgreedToPlayIds: (id, cb) => withView(view, cb, getGamesAgreedToPlayIds.bind(null, id)),
     getObservableGames: (id, cb) => withView(view, cb, getObservableGames.bind(null, id)),
+
+    /**
+     * A stream of the IDs of all the chess games in the database.
+     */
+    getAllGamesInDb: () => {
+      var source = deferred.source();
+
+      view.get((err, index) => {
+        if (err) {
+          source.abort(err);
+        } else {
+          var allGamesIter = iterable(allGamesIterable(index));
+          source.resolve(allGamesIter);
+        }
+      });
+
+      return source;
+    },
     getGamesFinished: (playerId) => {
       var source = deferred.source();
 
-      view.get( (err, index) => {
+      view.get((err, index) => {
         if (err) {
           source.abort(err)
         } else {
@@ -83,7 +101,7 @@ function getLatestUpdateTime(gameInfo) {
 function playFrequencyWeights(playerId, view) {
   var playerGames = allPlayerGames(view, playerId);
 
-  var scale = playerGames.map(getLatestUpdateTime).reduce((g1, g2) => Math.max(g1,g2));
+  var scale = playerGames.map(getLatestUpdateTime).reduce((g1, g2) => Math.max(g1, g2));
 
   var weights = {};
 
@@ -98,7 +116,7 @@ function playFrequencyWeights(playerId, view) {
     }
   });
 
-  return weights;    
+  return weights;
 }
 
 function weightGameInvite(game, scale) {
@@ -133,23 +151,30 @@ function gameHasUser(gameInfo, playerId) {
 }
 
 function* finishedGamesIterable(playerId, view) {
-  var result = [];
 
   for (var k in view) {
     if (view.hasOwnProperty(k)) {
       var summary = view[k];
       if (summary[STATUS_FIELD] != STATUS_INVITED && summary[STATUS_FIELD]
-           != STATUS_STARTED && gameHasUser(summary, playerId)) {
-             yield k;
-           }
+        != STATUS_STARTED && gameHasUser(summary, playerId)) {
+        yield k;
+      }
     }
 
   }
 
 }
 
+function* allGamesIterable(view) {
+  for (var k in view) {
+    if (view.hasOwnProperty(k)) {
+      yield k;
+    }
+  }
+}
+
 function withView(view, cb, func) {
-  view.get( (err, result) => {
+  view.get((err, result) => {
 
     if (err) {
       cb(err, null);
@@ -164,52 +189,52 @@ function pendingChallengesSent(playerId, view) {
   var result = [];
 
   for (var k in view) {
-       if (view.hasOwnProperty(k)) {
-         var gameInfo = view[k];
+    if (view.hasOwnProperty(k)) {
+      var gameInfo = view[k];
 
-         if (gameInfo[INVITER_FIELD] === playerId && gameInfo[STATUS_FIELD] === STATUS_INVITED) {
-            var invite = getInviteSummary(k, gameInfo);
+      if (gameInfo[INVITER_FIELD] === playerId && gameInfo[STATUS_FIELD] === STATUS_INVITED) {
+        var invite = getInviteSummary(k, gameInfo);
 
-            result.push(invite)
-         }
-       }
-   }
+        result.push(invite)
+      }
+    }
+  }
 
-   return result;
+  return result;
 }
 
 function pendingChallengesReceived(playerId, view) {
   var result = [];
 
   for (var k in view) {
-       if (view.hasOwnProperty(k)) {
-         var gameInfo = view[k];
-         if (gameInfo[INVITEE_FIELD] === playerId && gameInfo[STATUS_FIELD] === STATUS_INVITED) {
-            var invite = getInviteSummary(k, gameInfo);
+    if (view.hasOwnProperty(k)) {
+      var gameInfo = view[k];
+      if (gameInfo[INVITEE_FIELD] === playerId && gameInfo[STATUS_FIELD] === STATUS_INVITED) {
+        var invite = getInviteSummary(k, gameInfo);
 
-            result.push(invite)
-         }
-       }
-   }
+        result.push(invite)
+      }
+    }
+  }
 
-   return result;
+  return result;
 }
 
 function getGamesAgreedToPlayIds(playerId, view) {
   var result = [];
 
   for (var k in view) {
-       if (view.hasOwnProperty(k)) {
-         var gameInfo = view[k];
-         if ((gameInfo[INVITEE_FIELD] === playerId || gameInfo[INVITER_FIELD] === playerId)
-              && gameInfo[STATUS_FIELD] === STATUS_STARTED) {
+    if (view.hasOwnProperty(k)) {
+      var gameInfo = view[k];
+      if ((gameInfo[INVITEE_FIELD] === playerId || gameInfo[INVITER_FIELD] === playerId)
+        && gameInfo[STATUS_FIELD] === STATUS_STARTED) {
 
-            result.push(k)
-         }
-       }
-   }
+        result.push(k)
+      }
+    }
+  }
 
-   return result;
+  return result;
 }
 
 function getObservableGames(playerId, view) {
@@ -217,23 +242,23 @@ function getObservableGames(playerId, view) {
 
   for (var k in view) {
 
-       if (view.hasOwnProperty(k)) {
-         var gameInfo = view[k];
-         if ( (gameInfo[INVITEE_FIELD] !== playerId) &&
-            (gameInfo[INVITER_FIELD] !== playerId) &&
-            (gameInfo[STATUS_FIELD] === STATUS_STARTED)) {
+    if (view.hasOwnProperty(k)) {
+      var gameInfo = view[k];
+      if ((gameInfo[INVITEE_FIELD] !== playerId) &&
+        (gameInfo[INVITER_FIELD] !== playerId) &&
+        (gameInfo[STATUS_FIELD] === STATUS_STARTED)) {
 
-            // If either of these were null then one or more players aren't
-            // visible to the player, so we don't return it as an observable
-            // game
-            if (gameInfo[INVITER_FIELD] && gameInfo[INVITEE_FIELD]) {
-                result.push(k)
-            }
-         }
-       }
-   }
+        // If either of these were null then one or more players aren't
+        // visible to the player, so we don't return it as an observable
+        // game
+        if (gameInfo[INVITER_FIELD] && gameInfo[INVITEE_FIELD]) {
+          result.push(k)
+        }
+      }
+    }
+  }
 
-   return result;
+  return result;
 }
 
 function getGamesFinishedPageCb(playerId, start, end, view) {
@@ -242,11 +267,11 @@ function getGamesFinishedPageCb(playerId, start, end, view) {
 
 function getInviteSummary(gameId, gameInfo) {
   var invite = {
-   gameId: gameId,
-   sentBy: gameInfo[INVITER_FIELD],
-   inviting: gameInfo[INVITEE_FIELD],
-   inviterPlayingAs: gameInfo[INVITER_COLOUR_FIELD],
-   timestamp: gameInfo[UPDATED_FIELD]
+    gameId: gameId,
+    sentBy: gameInfo[INVITER_FIELD],
+    inviting: gameInfo[INVITEE_FIELD],
+    inviterPlayingAs: gameInfo[INVITER_COLOUR_FIELD],
+    timestamp: gameInfo[UPDATED_FIELD]
   }
 
   return invite;
@@ -338,7 +363,7 @@ function winnerFromEndMsg(players, maybeGameEndMsg) {
   if (!maybeGameEndMsg || !players) {
     return null;
   } else {
-    switch(maybeGameEndMsg.value.content.status) {
+    switch (maybeGameEndMsg.value.content.status) {
       case "mate":
         return maybeGameEndMsg.value.author;
       case "draw":

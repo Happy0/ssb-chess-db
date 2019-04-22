@@ -101,6 +101,10 @@ function getLatestUpdateTime(gameInfo) {
 function playFrequencyWeights(playerId, view) {
   var playerGames = allPlayerGames(view, playerId);
 
+  if (playerGames.length === 0) {
+    return {};
+  }
+
   var scale = playerGames.map(getLatestUpdateTime).reduce((g1, g2) => Math.max(g1, g2));
 
   var weights = {};
@@ -179,7 +183,7 @@ function withView(view, cb, func) {
     if (err) {
       cb(err, null);
     } else {
-      cb(null, func(result));
+      cb(null, func(result || {}));
     }
 
   });
